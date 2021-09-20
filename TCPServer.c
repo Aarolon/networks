@@ -1,4 +1,4 @@
-"@authors Dylan Norris and Torin Johnson"
+/*"@authors Dylan Norris and Torin Johnson"*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
