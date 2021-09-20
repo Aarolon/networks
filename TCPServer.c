@@ -109,6 +109,7 @@ void A_input(packet)
       state = 0;
       stoptimer(0);
   }else{
+      printf("Packet corruption detected.\n");
       printf("Host A resent packet. Seqnum: %i Acknum: %i Checksum: %i Payload: %s\n", currpkt.seqnum, currpkt.acknum, currpkt.checksum, currpkt.payload);
       tolayer3(0, currpkt);
       stoptimer(0);
