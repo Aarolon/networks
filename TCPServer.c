@@ -106,7 +106,7 @@ void A_input(packet)
   /*Set the seqnum to the byte number we are on at the beginning of this packet
   i.e. 0, 20, 40, 60, ... until connection closes?*/
   /* Look at the packet to make sure it's not corrupted, should recevive the */
-  if(packet.acknum > 0){
+  if(packet.acknum == currpkt.seqnum + 20){
       state = 0;
       stoptimer(0);
   }else{
