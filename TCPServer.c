@@ -4,7 +4,6 @@
 
 /* ******************************************************************
  ALTERNATING BIT AND GO-BACK-N NETWORK EMULATOR: VERSION 1.1  J.F.Kurose
-
    This code should be used for PA2, unidirectional or bidirectional
    data transfer protocols (from A to B. Bidirectional transfer of data
    is for extra credit and is not required).  Network properties:
@@ -188,7 +187,6 @@ The code below emulates the layer 3 and below network environment:
   - handles the starting/stopping of a timer, and generates timer
     interrupts (resulting in calling students timer handler).
   - generates message to be sent (passed from later 5 to 4)
-
 THERE IS NOT REASON THAT ANY STUDENT SHOULD HAVE TO READ OR UNDERSTAND
 THE CODE BELOW.  YOU SHOLD NOT TOUCH, OR REFERENCE (in your code) ANY
 OF THE DATA STRUCTURES BELOW.  If you're interested in how I designed
@@ -526,7 +524,7 @@ struct pkt packet;
       nlost++;
       if (TRACE>0)
 	printf("          TOLAYER3: packet being lost\n");
-      // return NULL;
+      return NULL;
     }
 
 /* make a copy of the packet student just gave me since he/she may decide */
