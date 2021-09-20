@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* ******************************************************************
  ALTERNATING BIT AND GO-BACK-N NETWORK EMULATOR: VERSION 1.1  J.F.Kurose
@@ -37,15 +38,20 @@ struct pkt {
 
 /********* STUDENTS WRITE THE NEXT SEVEN ROUTINES *********/
 
+void starttimer(int AorB, float increment);
+void stoptimer(int AorB);
+void tolayer3(int AorB, struct pkt);
+void tolayer5(int AorB, char datasent[20]);
+
 int currSeqNum;
-int baseSeqNum;
+int state;
 struct pkt currpkt;
 
 /*The checksum function used to return the checksum amount*/
 int check_sum(int seqnum, int acknum, char payload[20])
 {
     int checksum = 0;
-
+    /*Add the acknum and seqnum*/
     checksum += (seqnum + acknum);
 
     for (int i = 0; i < sizeof(payload); i++) {
@@ -57,21 +63,30 @@ int check_sum(int seqnum, int acknum, char payload[20])
 
 
 /* called from layer 5 (application layer), passed the data to be sent to other side */
-A_output(message)
+void A_output(message)
   struct msg message;
 {
-  struct pkt new_pkt;
-  new_pkt.seqnum = currSeqNum;
-  new_pkt.acknum = currSeqNum;
-  strcpy(new_pkt.payload, message.data);
-  new_pkt.checksum = check_sum(currSeqNum, currSeqNum, message.data);
+    if(state == 1){
+        printf("Host A in sending state. Drop event.\n");
+        return;
+    }
+  struct pkt newpkt;
+  newpkt.seqnum = currSeqNum;
+  newpkt.acknum = currSeqNum;
+  strncpy(newpkt.payload, message.data, sizeof(message.data));
 
-  // tolayer3(0, new_pkt);
-
+  /*Do initial checksum math and put in packet*/
+  newpkt.checksum = check_sum(currSeqNum, currSeqNum + 1, message.data);
+  tolayer3(0, newpkt);
+  starttimer(0, 30.0);
+  printf("Host A sent packet. Seqnum: %i Acknum: %i Checksum: %i Payload: %s\n", newpkt.seqnum, newpkt.acknum, newpkt.checksum, newpkt.payload);
+  /*Sending state, 1 means sending*/
+  state = 1;
+  currpkt = newpkt;
+  currSeqNum += 20;
 
   /*check to make sure no buffer overflow*/
   /*create a pkt which consists of a TCP header, with all packet elements*/
-  /*Do initial checksum math and put in packet*/
   /*Somehow keep track of seqnum and acknum and put in packet*/
   /*seqnum should mainly be 0?*/
   /*Call to layer 3 next, to send to layer3*/
@@ -79,42 +94,50 @@ A_output(message)
 
 }
 
-B_output(message)  /* need be completed only for extra credit */
+void B_output(message)  /* need be completed only for extra credit */
   struct msg message;
-{
-  /*Increase seqnum by 1*/
-  /*Send back to A */
-  /*Perform checksum calculation and check it to the given checksum */
-  /*Doesn't matter this time*/
-
-}
+{}
 
 /* called from layer 3, when a packet arrives for layer 4 */
-A_input(packet)
+void A_input(packet)
   struct pkt packet;
 {
+    printf("Host A recieved response from Host B.  Acknum: %i\n", packet.acknum);
   /*Set the seqnum to the byte number we are on at the beginning of this packet
   i.e. 0, 20, 40, 60, ... until connection closes?*/
   /* Look at the packet to make sure it's not corrupted, should recevive the */
+  if(packet.acknum > 0){
+      state = 0;
+      stoptimer(0);
+  }else{
+      printf("Host A resent packet. Seqnum: %i Acknum: %i Checksum: %i Payload: %s\n", currpkt.seqnum, currpkt.acknum, currpkt.checksum, currpkt.payload);
+      tolayer3(0, currpkt);
+      stoptimer(0);
+      starttimer(0, 30.0);
+  }
 
 }
 
 /* called when A's timer goes off */
-A_timerinterrupt()
+void A_timerinterrupt()
 {
   /*Resend the A packet to B */
-
+    state = 1;
+    tolayer3(0,currpkt);
+    starttimer(0,30.0);
+    printf("Timeout Error: Host A resent packet.\n");
 }
 
 /* the following routine will be called once (only) before any other */
 /* entity A routines are called. You can use it to do any initialization */
-A_init()
+void A_init()
 {
   /*Need to add an init for variables:
   SeqNumber
    */
+
    currSeqNum = 0;
-   baseSeqNum = 0;
+   state = 0;
 
 }
 
@@ -122,21 +145,36 @@ A_init()
 /* Note that with simplex transfer from a-to-B, there is no B_output() */
 
 /* called from layer 3, when a packet arrives for layer 4 at B*/
-B_input(packet)
+void B_input(packet)
   struct pkt packet;
 {
+  struct pkt newpkt;
+  printf("Host B recieved packet. Seqnum: %i Acknum: %i Checksum: %i Payload: %s\n", packet.seqnum, packet.acknum, packet.checksum, packet.payload);
+  /*If the packet is not corrupted */
+  if(check_sum(packet.seqnum, packet.acknum + 1, packet.payload) == packet.checksum){
+    newpkt.seqnum = 0;
+    newpkt.acknum = packet.seqnum + 20;
+    newpkt.checksum = 0;
+    tolayer5(1, packet.payload);
+
+  /*If the packet is corrupted */
+  }else{
+    newpkt.seqnum = 0;
+    newpkt.acknum = -999;
+    newpkt.checksum = 0;
+  }
+
+  tolayer3(1, newpkt);
 
 }
 
 /* called when B's timer goes off */
-B_timerinterrupt()
-{
-  /*Does nothing? */
-}
+void B_timerinterrupt()
+{}
 
 /* the following rouytine will be called once (only) before any other */
 /* entity B routines are called. You can use it to do any initialization */
-B_init()
+void B_init()
 {
   /*Only do if bidirectional*/
 }
@@ -193,10 +231,6 @@ int ncorrupt;              /* number corrupted by media*/
 void init();
 void generate_next_arrival();
 void insertevent(struct event *p);
-// void starttimer(int AorB, float increment);
-// void stoptimer(int AorB);
-// void tolayer3(int AorB, struct pkt);
-// void tolayer5(char datasent[20]);
 
 main()
 {
@@ -439,7 +473,7 @@ int AorB;  /* A or B is trying to stop timer */
              q->prev->next =  q->next;
              }
        free(q);
-       // return NULL;
+       return;
      }
   printf("Warning: unable to cancel your timer. It wasn't running.\n");
 }
